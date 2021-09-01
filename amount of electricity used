@@ -1,4 +1,87 @@
+##기본 설정##
+
 # 구글 드라이브 연결을 위한 드라이브 마운트 진행
 from google.colab import drive
 drive.mount('/content/drive')
+
+#기본 라이브러리 불러오기
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import plotly as py
+import seaborn as sns
+from matplotlib import font_manager, rc
+import plotly.express as px
+from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
+from scipy import stats
+%matplotlib inline
+from sklearn.preprocessing import MinMaxScaler
+from datetime import timedelta
+from sklearn.model_selection import train_test_split
+
+# 한글 폰트 불러오기
+plt.rcParams['axes.unicode_minus'] = False
+f_path ='/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/origin_data/NanumGothic.ttf'
+font_name = font_manager.FontProperties(fname=f_path).get_name()
+rc('font', family=font_name)
+
+
+##데이터 불러오기##
+
+# Train 데이터 불러오기 
+df = pd.read_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/origin_data/train.csv', encoding = 'cp949')
+
+# 데이터 간략보기(윗부분)
+df.head()
+
+# Test 데이터 불러오기 
+test = pd.read_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/origin_data/test.csv', encoding = 'cp949')
+
+# 데이터 간략보기(윗부분)
+test.head()
+
+# Submission 데이터 불러오기 
+sub = pd.read_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/origin_data/sample_submission.csv',encoding='cp949')
+
+
+##전체 데이터셋 확인##
+
+# train 셋 확인
+df.info()
+
+# 결측치 확인
+df.isnull().sum()
+
+# -> 결측치 없음
+
+# 컬럼 확인하기
+columns = ['전력사용량(kWh)','기온(°C)','풍속(m/s)','습도(%)','강수량(mm)','일조(hr)','비전기냉방설비운영','태양광보유']
+df[columns].describe()
+
+# 각 컬럼에 대한 시각화
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+plt.figure(figsize = (30,25))
+for i in range(8):
+    plt.subplot(5,4,i+1)
+    sns.distplot(df[columns[i]])
+plt.show()
+
+# 각 컬럼별 상관관계 확인
+f,ax=plt.subplots(1,1,figsize=(10,8))
+plt.rc('font', family='NanumGothic') 
+sns.heatmap(df.loc[:,:].corr(), annot = True, fmt = '.1g', cmap = 'summer')
+
+#testset 확인
+test.info()
+
+# 결측치 확인
+test.isnull().sum()
+
+
+##전처리##
+
+#'Date_time' & 'Weekday' & 'Weeknumber'컬럼 전처리
+
 
