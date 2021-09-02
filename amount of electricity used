@@ -116,7 +116,10 @@ for i in df['date']:
 # 확인
 date_1[2]
 
-# 포문을 활용해 주차만 추출하고, 1년의 주차를 뽑아주기 때문에 우리에 맞게 -22를 함
+# 포문을 활용해 주차만 추출하고, 
+# 1년의 전체 주차 중 6월 첫째주는 23주차. 
+# 우리 데이터에 맞게 6월 첫째주를 1주차로 뽑아주기 위해 각 -22 for문 사용(23(주) - 22 -> 1(주))
+
 date_2 = []
 for i in range(len(date_1)):
   date_2.append(date_1[i][1]-22)
@@ -279,7 +282,7 @@ date_1 = []
 for i in test['date']:
   date_1.append(i.isocalendar())
 
-  # 확인
+# 확인
 date_1[2]
 
 # 포문을 활용해 주차만 추출하고 1년의 주차를 뽑아주기 때문에 우리에 맞게 -22를 함
@@ -447,8 +450,12 @@ lgbm = LGBMRegressor()
 lgbm.fit(X_train, y_train).score(X_test, y_test)
 
 #**[ 하이퍼 파라미터 조정 ]** 
-- 7월 10일 이내로 기입 예정
 
+# 하이퍼파라미터 조정 방법
+# - 옵티마이제이션
+# - 그리드 서치
+# 를 사용해서 최적의 하이퍼파라미터를 찾을 수 있음.
+# 하지만 프로젝트 시간이 부족하여 진행하지 못하고 수작업으로 진행
 
 
 #**[ 최종 모델링 및 검증 ]** 
@@ -463,6 +470,7 @@ lgbm.fit(X_train, y_train).score(X_test, y_test)
 # metric 학습하려는 목적에 따라 설정 / SMAPE가 옵션에 없어서 일단 MAPE로 진행함.
 # early_stopping_rounds 는 조기멈춤을 뜻하며 validation셋에 발전이 없으면 그만두게 설정할 수 있음.
 # min_data_in_leaf 는 오버피팅을 예방하는데 사용
+
 import lightgbm as lgbm
 from lightgbm import LGBMRegressor
 
@@ -532,6 +540,7 @@ plt.yticks(coordinates, df_importance ["Feature"])
 plt.xlabel("설명변수 중요도")
 plt.ylabel("설명변수")
 
+
 #**[ 최종 적용 ]** 
 
 # 최종 모델을 변수에 저장하고 정확도를 확인
@@ -551,9 +560,11 @@ predictions = best_model.predict(te)
 # 예측값은 array로 나옴
 predictions
 
-  # array로 나온 값을 정답지에 붙여넣기
-  sub['answer'] = predictions
+# array로 나온 값을 정답지에 붙여넣기
+sub['answer'] = predictions
 
+
+# 확인
 sub
 
 # 최종 저장
