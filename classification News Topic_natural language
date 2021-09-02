@@ -242,7 +242,7 @@ a = Dropout(0.3)(a)
 
 a = LSTM(256)(a)
 a = Dropout(0.3)(a)
-# 덴스는 가중치의 수(?)
+# 덴스는 가중치의 수
 a = Dense(64, activation='relu')(a)
 a = Dropout(0.3)(a)
 a = Dense(64, activation='relu')(a)
