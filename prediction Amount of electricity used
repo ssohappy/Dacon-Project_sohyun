@@ -1,6 +1,6 @@
 ##기본 설정##
 
-# 구글 드라이브 연결을 위한 드라이브 마운트 진행
+# 구글 드라이브 마운트 진행
 from google.colab import drive
 drive.mount('/content/drive')
 
@@ -29,19 +29,19 @@ rc('font', family=font_name)
 ##데이터 불러오기##
 
 # Train 데이터 불러오기 
-df = pd.read_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/origin_data/train.csv', encoding = 'cp949')
+df = pd.read_csv('/content/drive/MyDrive/origin_data/train.csv', encoding = 'cp949')
 
 # 데이터 간략보기(윗부분)
 df.head()
 
 # Test 데이터 불러오기 
-test = pd.read_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/origin_data/test.csv', encoding = 'cp949')
+test = pd.read_csv('/content/drive/MyDrive/origin_data/test.csv', encoding = 'cp949')
 
 # 데이터 간략보기(윗부분)
 test.head()
 
 # Submission 데이터 불러오기 
-sub = pd.read_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/origin_data/sample_submission.csv',encoding='cp949')
+sub = pd.read_csv('/content/drive/MyDrive/origin_data/sample_submission.csv',encoding='cp949')
 
 
 ##전체 데이터셋 확인##
@@ -404,7 +404,7 @@ train_cl = pd.merge(df, cl_df[['num', 'km_cluster']], how='left', on='num')
 train_cl.head()
 
 # 클러스터링을 통한 피처 도출 후 저장
-train_cl.to_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/train_클러스터링 추가.csv', index=False)
+train_cl.to_csv('/content/drive/MyDrive/origin_data/train_클러스터링 추가.csv', index=False)
 
 # < Test Set >
 
@@ -421,7 +421,7 @@ for i in range(1, 61):
 test_cl
 
 # 클러스터링을 통한 피처 도출 후 저장
-test_cl.to_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/test_클러스터링 추가.csv', index=False)
+test_cl.to_csv('/content/drive/MyDrive/origin_data/test_클러스터링 추가.csv', index=False)
 
 
 #**[ 기본 모델링 ]** 
@@ -569,4 +569,4 @@ sub['answer'] = predictions
 sub
 
 # 최종 저장
-sub.to_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/lgbm_cluster_submission_fff.csv', index=False)
+sub.to_csv('/content/drive/MyDrive/origin_data/lgbm_cluster_submission_fff.csv', index=False)
