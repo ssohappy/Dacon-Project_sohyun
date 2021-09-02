@@ -65,7 +65,7 @@ import seaborn as sns
 plt.figure(figsize = (30,25))
 for i in range(8):
     plt.subplot(5,4,i+1)
-    sns.distplot(df[columns[i]])
+    sns.distplot(df[columns[i]]) 
 plt.show()
 
 # 각 컬럼별 상관관계 확인
