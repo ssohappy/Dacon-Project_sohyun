@@ -84,4 +84,336 @@ test.isnull().sum()
 
 #'Date_time' & 'Weekday' & 'Weeknumber'컬럼 전처리
 
+# 따로 컬럼 만들어 '시간' 추출
+def time(x):
+    return int(x[-2:])
 
+# DataFrame 열을 Datatime으로 변환하는 DataFrame.apply 사용
+df['time']=df['date_time'].apply(lambda x: time(x))
+
+# 각각 동일하게 분포하고 있어 시각화 X
+df['time'].value_counts()
+
+# 따로 컬럼 만들어 '요일' 추출
+def weekday(x):
+    return pd.to_datetime(x[:24]).weekday()
+
+# DataFrame 열을 Datatime으로 변환하는 DataFrame.apply 사용   
+df['weekday']=df['date_time'].apply(lambda x :weekday(x))
+
+# 각각 동일하게 분포하고 있어 시각화 X
+df['weekday'].value_counts()
+
+# 따로 컬럼 만들어 몇주찬지 추출
+# 오브젝트 형태에서 날짜형으로 변경
+df['date'] = pd.to_datetime(df['date_time'])
+
+# 날짜형에서 포문을 활용해 년도/주차/요일 추출
+date_1 = []
+for i in df['date']:
+  date_1.append(i.isocalendar())
+
+# 확인
+date_1[2]
+
+# 포문을 활용해 주차만 추출하고, 1년의 주차를 뽑아주기 때문에 우리에 맞게 -22를 함
+date_2 = []
+for i in range(len(date_1)):
+  date_2.append(date_1[i][1]-22)
+
+# 확인 
+df['week_number']=date_2
+
+# 밸류 수 확인
+df['week_number'].value_counts()
+
+##강수량: 비가 얼마나 왔는지보다, '비가 왔는지(1)' / '안 왔는지(0)'로 판단하는게 좋다고 생각##
+
+#분류를 위한 함수 생성 (내린다 :1 / 안 내린다:0)
+def rain(x):
+    if x==0: return 0
+    elif x>0: return 1
+
+df["강수량(mm)"] = df["강수량(mm)"].apply(rain)
+
+# 밸류 수 확인
+df['강수량(mm)'].value_counts()
+
+# 시각화
+f,ax=plt.subplots(1,2,figsize=(18,8))
+df['강수량(mm)'].value_counts().plot.pie(explode=[0,0.1], autopct='%1.2f%%', ax=ax[0], shadow=True)
+ax[0].set_title('강수량(mm)')
+ax[0].set_ylabel('')
+sns.countplot('강수량(mm)', data = df, ax=ax[1])
+ax[1].set_title('강수량(mm)')
+plt.show()
+
+##비전기 냉방설비 운영##
+
+# 밸류 수 확인
+df['비전기냉방설비운영'].value_counts()
+
+# 시각화
+f,ax=plt.subplots(1,2,figsize=(18,8))
+df['비전기냉방설비운영'].value_counts().plot.pie(explode=[0,0.1], autopct='%1.2f%%', ax=ax[0], shadow=True)
+ax[0].set_title('비전기냉방설비운영')
+ax[0].set_ylabel('')
+sns.countplot('비전기냉방설비운영', data = df, ax=ax[1])
+ax[1].set_title('비전기냉방설비운영')
+plt.show()
+
+##태양광 보유##
+
+## 단순 확인
+
+# 밸류 수 확인
+df['태양광보유'].value_counts()
+
+# 시각화
+f,ax=plt.subplots(1,2,figsize=(18,8))
+df['태양광보유'].value_counts().plot.pie(explode=[0,0.1], autopct='%1.2f%%', ax=ax[0], shadow=True)
+ax[0].set_title('태양광보유')
+ax[0].set_ylabel('')
+sns.countplot('태양광보유', data = df, ax=ax[1])
+ax[1].set_title('태양광보유')
+plt.show()
+
+## *일조시간: 태양의 직사광이 지표면에 비친 시간##
+
+# 일조시간 2등분으로 구분 후 분류
+
+# 일조시간이 0.1당 10분인 것을 고려하여
+# 0 ~ 0.4 : 흐림 / 0.5 ~ 1: 맑음 
+
+df['일조(hr)'].value_counts()
+
+# 분류를 위한 함수 생성(0 ~ 0.4 : 흐림 / 0.5 ~ 1: 맑음)
+def sun(x):
+    if x<=0.4: return 0
+    elif x>=0.5: return 1
+
+# 적용
+df["일조(hr)"] = df["일조(hr)"].apply(sun)
+
+# 밸류 수 확인
+df['일조(hr)'].value_counts()
+
+# 시각화
+f,ax=plt.subplots(1,2,figsize=(18,8))
+df['일조(hr)'].value_counts().plot.pie(explode=[0,0.1], autopct='%1.2f%%', ax=ax[0], shadow=True)
+ax[0].set_title('일조(hr)')
+ax[0].set_ylabel('')
+sns.countplot('일조(hr)', data = df, ax=ax[1])
+ax[1].set_title('일조(hr)')
+plt.show()
+
+
+##각 컬럼 전처리후, 상관관계 재분석##
+
+# 데이터 행 삭제
+df = df.drop(['date', 'date_time'],axis=1)
+
+# 확인
+df
+
+# 각 컬럼별 상관관계 시각화
+f,ax=plt.subplots(1,1,figsize=(10,8))
+plt.rc('font', family='NanumGothic') 
+sns.heatmap(df.loc[:,:].corr(), annot = True, fmt = '.1g', cmap = 'summer')
+
+# < Test Set >
+
+# 결측치 보간
+
+#건물별로 '비전기냉방설비운영'과 '태양광보유'를 판단해 test set의 결측치를 보간해줍니다
+df[['num', '비전기냉방설비운영','태양광보유']]
+ice={}
+hot={}
+count=0
+for i in range(0, len(df), len(df)//60):
+    count +=1
+    ice[count]=df.loc[i,'비전기냉방설비운영']
+    hot[count]=df.loc[i,'태양광보유']
+
+for i in range(len(test)):
+    test.loc[i, '비전기냉방설비운영']=ice[test['num'][i]]
+    test.loc[i, '태양광보유']=hot[test['num'][i]]
+
+# 나머지 컬럼들의 결측치는 interpolate 로 해결
+# https://rfriend.tistory.com/264
+# default 값을 선형으로 비례하여 결측치 값 처리
+test = test.interpolate(method='values')
+
+test.info()
+
+# 결측치 확인
+test.isnull().sum()
+
+# 'Date_time' & 'Weekday' & 'Weeknumber'
+
+# 따로 컬럼 만들어 시간 추출
+def time(x):
+    return int(x[-2:])
+
+# 적용
+test['time']=test['date_time'].apply(lambda x: time(x))
+
+# 각각 동일하게 분포하고 있어 시각화 X
+test['time'].value_counts()
+
+# 따로 컬럼 만들어 요일 추출
+def weekday(x):
+    return pd.to_datetime(x[:24]).weekday()
+
+test['weekday']=test['date_time'].apply(lambda x :weekday(x))
+
+# 각각 동일하게 분포하고 있어 시각화 X
+test['weekday'].value_counts()
+
+# 따로 컬럼 만들어 몇주찬지 추출
+# 오브젝트 형태에서 날짜형으로 변경
+test['date'] = pd.to_datetime(test['date_time'])
+
+# 날짜형에서 포문을 활용해 년도/주차/요일 추출
+date_1 = []
+for i in test['date']:
+  date_1.append(i.isocalendar())
+
+  # 확인
+date_1[2]
+
+# 포문을 활용해 주차만 추출하고 1년의 주차를 뽑아주기 때문에 우리에 맞게 -22를 함
+date_2 = []
+for i in range(len(date_1)):
+  date_2.append(date_1[i][1]-22)
+
+test['week_number']=date_2
+
+test['week_number'].value_counts()
+
+test = test.drop(['date_time'],axis=1)
+
+# '강수량'
+
+# 강수 -> 비 온다 / 안온다
+def rain(x):
+    if x==0: return 0
+    elif x>0: return 1
+
+# 적용
+test["강수량(mm, 6시간)"] = test["강수량(mm, 6시간)"].apply(rain)
+
+# 밸류 수 확인
+test['강수량(mm, 6시간)'].value_counts()
+
+# '일조시간'
+
+#밸류 수 확인
+test['일조(hr, 3시간)'].value_counts()
+
+# 분류를 위한 함수 생성 (내린다 :1 / 안 내린다:0)
+def sun(x):
+    if x<=0.4: return 0
+    elif x>=0.5: return 1
+
+# 적용
+test["일조(hr, 3시간)"] = test["일조(hr, 3시간)"].apply(sun)
+
+# 밸류 수 확인
+test['일조(hr, 3시간)'].value_counts()
+
+test = test.drop(['date'],axis=1)
+
+# 확인
+test
+
+# **[ 클러스터링 ]**
+
+# - KMeans
+
+
+# < Train Set >
+
+# 요일에 따른 평균 값 산출
+weekday_mean = (
+    df.groupby(['num', 'weekday'])['전력사용량(kWh)'].mean()
+    .reset_index()
+    .pivot('num', 'weekday', '전력사용량(kWh)')
+    .reset_index()
+)
+
+# 시간에 따른 평균 값 산출
+hour_mean = (
+    df.groupby(['num', 'time'])['전력사용량(kWh)'].mean()
+    .reset_index()
+    .pivot('num', 'time', '전력사용량(kWh)')
+    .reset_index()
+    .drop('num', axis=1)
+)
+
+cl_df = pd.concat([weekday_mean, hour_mean], axis=1)
+
+# 보기 편하게 컬럼 이름 지정
+columns = (
+    ['num']
+    + ['day_mean_' + str(i) for i in range(7)]
+    + ['hour_mean_' + str(i) for i in range(24)]
+)
+
+cl_df.columns = columns
+
+# KMeans 불러오기
+from sklearn.cluster import KMeans
+
+
+# elbow method를 통해 군집의 개수 결정
+## elbow method : Cluster 간의 거리의 합을 나타내는 inertia가 급격히 떨어지는 구간이 생김. 이 지점의 K값을 군집의 개수로 사용함.
+
+def change_n_clusters(n_clusters, data):
+    sum_of_squared_distance = []
+    for n_cluster in n_clusters:
+        kmeans = KMeans(n_clusters=n_cluster)
+        kmeans.fit(data)
+        sum_of_squared_distance.append(kmeans.inertia_)
+        
+    plt.figure(1 , figsize = (12, 6))
+    plt.plot(n_clusters , sum_of_squared_distance , 'o')
+    plt.plot(n_clusters , sum_of_squared_distance , '-' , alpha = 0.5)
+    plt.xlabel('Number of Clusters')
+    plt.ylabel('Inertia')
+
+change_n_clusters([2,3,4,5,6,7,8,9,10,11], cl_df.iloc[:,1:])
+
+# 5개의 군집으로 KMeans 적용
+
+model = KMeans(n_clusters = 5, random_state = 42)
+pred = model.fit_predict(cl_df.iloc[:, 1:])
+
+cl_df['km_cluster'] = pred
+
+#Train Set에 피쳐값 합치기 
+
+train_cl = pd.merge(df, cl_df[['num', 'km_cluster']], how='left', on='num')
+
+# 확인
+train_cl.head()
+
+# 클러스터링을 통한 피처 도출 후 저장
+train_cl.to_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/train_클러스터링 추가.csv', index=False)
+
+# < Test Set >
+
+# 복사한 test셋에 적용하기 위해서 test셋 복사 
+test_cl = test.copy()
+
+# 트레인에 적용했던 클러스터링을 포문으로 테스트에 적용
+for i in range(1, 61):
+    test_cl.loc[test_cl.num == i, 'km_cluster'] = (
+        train_cl.loc[train_cl.num == i, 'km_cluster'].max()
+    )
+
+# 확인
+test_cl
+
+# 클러스터링을 통한 피처 도출 후 저장
+test_cl.to_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/test_클러스터링 추가.csv', index=False)
