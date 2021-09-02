@@ -1,0 +1,284 @@
+## 구글 드라이브 연동
+
+from google.colab import drive
+drive.mount('/content/drive')
+
+## 필수 설치
+
+#### Mecab 설치
+- 런타임 가속기 GPU로 변경
+
+https://github.com/SOMJANG/Mecab-ko-for-Google-Colab --> 이거 참고함
+
+https://beausty23.tistory.com/61
+
+! git clone https://github.com/SOMJANG/Mecab-ko-for-Google-Colab.git
+
+cd Mecab-ko-for-Google-Colab/
+
+! bash install_mecab-ko_on_colab190912.sh
+
+# konlpy 설치
+
+!pip install konlpy
+import konlpy
+konlpy.__version__
+
+!pip install git+https://github.com/haven-jeon/PyKoSpacing.git
+
+## 라이브러리 및 데이터 준비
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import plotly as py
+import seaborn as sns
+from matplotlib import font_manager, rc
+import plotly.express as px
+from plotly.offline import download_plotlyjs, init_notebook_mode, iplot
+from scipy import stats
+
+from pykospacing import Spacing
+from konlpy.tag import Mecab
+from gensim.models import word2vec
+
+from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.model_selection import train_test_split
+import tensorflow as tf
+from tensorflow import keras
+import urllib.request
+from sklearn.metrics import accuracy_score, precision_score, recall_score
+from keras.layers import Input, Embedding, LSTM, Dense, Reshape, Conv1D, GlobalMaxPooling1D, Dropout,SimpleRNN
+from keras.models import Model
+from tensorflow.keras.utils import plot_model, to_categorical
+from keras.utils import np_utils
+from tensorflow.keras.preprocessing.text import Tokenizer
+import tokenize
+
+%matplotlib inline
+
+df = pd.read_csv('/content/drive/MyDrive/origin_data/자연어/train_data.csv')
+df.head()
+
+##  데이터 확인
+
+# train 확인
+df.info()
+
+# 결측치 확인
+df.isnull().sum()
+
+df['topic_idx'].value_counts()
+
+df.shape
+
+dft = df.copy()
+
+dft['title'].str.len()
+
+plt.figure(figsize = (10,5))
+sns.distplot(dft['title'].str.len())
+
+## 데이터 처리
+
+# 한글 영어 공백 숫자 외 다 제거
+dft["title"] = dft["title"].str.replace('[^A-Z가-힣 ]', "  ")
+dft.head()
+
+dft.head()
+
+stopwords=['의','가','이','은','들','는','좀','잘','걍','과','도','를','으로','자','에','와','것','겠','다','및','또','곳','하','면','안','돼','되','될','수','없','어','니깐','는데','나','고','어','했','나','엔','믿','로',
+           '디','에','슬','레','틱','당', '아야','내놓','할','건','넣','부','등', '서', '계','스','잊','힌','끄','지','해','급','권','재','사','성','전','있','않','왔','을','걷','꺾','돼야','해야','린드','냐','아','라','게요',
+           '오','키','세','조','후','송','명','채','때','에게','원','옐', '울','소','듯','웃','시','년','받','임','행','위','인','따','냈','속','대','틀','적','견','나누','할','텍스','천','놓','내','못','브렉','시트','붐벼','모든','만의',
+           '보다','최','민정','읏','타','구','좀','잘','주','려','번','보이','들','돼도','되도','칭','라이','그','때','대하','위하','그렇','말하','두','알','오','지','보','않','없','크','따르','문제','받','오','때문','월','속','네','앞','만들','그러','씨','생각하','그리고',
+           '그리고','그런','이런','저런','그리하여','그래서','따라서','N','떨어','오를','사라','마라','말아','알아','시키','가지','지금','싱','부나','로엔','펼칠','울긋불긋','물들','엇','널','급','앞장서','북키프로스','앗','싶','놀라','워',
+           '질까','통하','취해야','내달','측','악','윽','옥','나선','코로','둘','통한','삐걱','데즈','하이','로우','죈다','대','첫','꿴','꿰다','어쩌나','맞아','맞다']
+
+# 토큰화 작업(형태소)
+mecab = Mecab()
+tokenized_data = []
+for sentence in dft['title']:
+    temp_X = mecab.morphs(sentence) # 토큰화
+    temp_X = [word for word in temp_X if not word in stopwords] # 불용어 제거
+    tokenized_data.append(temp_X)
+
+print(tokenized_data[:200])
+
+## 워드 임베딩
+
+s = np.array([x for x in tokenized_data])
+
+# Tokenizer
+from keras.preprocessing.text import Tokenizer
+vocab_size = 10000  
+
+tokenizer = Tokenizer(num_words = vocab_size)  
+  # Tokenizer 는 데이터에 출현하는 모든 단어의 개수를 세고 빈도 수로 정렬해서 
+  # num_words 에 지정된 만큼만 숫자로 반환하고, 나머지는 0 으로 반환합니다                 
+tokenizer.fit_on_texts(s) # Tokenizer 에 데이터 실제로 입력
+sequences_train = tokenizer.texts_to_sequences(s)    # 문장 내 모든 단어를 시퀀스 번호로 변환
+
+print(len(sequences_train))
+
+# 변환된 시퀀스 번호를 이용해 단어 임베딩 벡터 생성
+word_index = tokenizer.word_index
+
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+# 독립변수 데이터 전처리
+  ## 문장의 길이기 제각각이기 때문에 벡터 크기 다 다름
+  ## 그러므로 최대 시퀀스 길이 크기(211) 만큼 넉넉하게 늘리고
+  ## 패딩(padding) 작업을 통해 나머지 빈 공간을 0으로 채움
+max_length = 21    # 위에서 그래프 확인 후 정함
+padding_type='post'
+
+X = pad_sequences(sequences_train, padding='post', maxlen=max_length)
+
+print(X.shape)
+
+X
+
+label = list(df['topic_idx'])
+y = np.array(label)
+
+from sklearn.model_selection import train_test_split
+
+RANDOM_SEED = 42
+TEST_SPLIT = 0.2
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=TEST_SPLIT, 
+                                                    random_state=RANDOM_SEED)
+
+print(X_train.shape)
+print(y_train.shape)
+print(X_test.shape)
+print(y_test.shape)
+
+# 종속변수 데이터 전처리
+y_train = np_utils.to_categorical(y_train) # Y_train 에 원-핫 인코딩
+y_test = np_utils.to_categorical(y_test)
+
+print(y_train.shape)
+print(y_test.shape)
+
+## TEST 데이터 처리
+
+# 테스트 셋 준비
+te = pd.read_csv('/content/drive/MyDrive/origin_data/자연어/test_data.csv')
+sub = pd.read_csv('/content/drive/MyDrive/origin_data/자연어/sample_submission.csv')
+
+# test 확인
+te.info()
+
+# 결측치 확인
+te.isnull().sum()
+
+test = te.copy()
+
+test['title'].str.len()
+
+plt.figure(figsize = (10,5))
+sns.distplot(test['title'].str.len())
+
+# 한글 영어 공백 숫자 외 다 제거
+test["title"] = test["title"].str.replace('[^A-Z가-힣 ]', "  ")
+test.head()
+
+stopwords=['의','가','이','은','들','는','좀','잘','걍','과','도','를','으로','자','에','와','것','겠','다','및','또','곳','하','면','안','돼','되','될','수','없','어','니깐','는데','나','고','어','했','나','엔','믿','로',
+           '디','에','슬','레','틱','당', '아야','내놓','할','건','넣','부','등', '서', '계','스','잊','힌','끄','지','해','급','권','재','사','성','전','있','않','왔','을','걷','꺾','돼야','해야','린드','냐','아','라','게요',
+           '오','키','세','조','후','송','명','채','때','에게','원','옐', '울','소','듯','웃','시','년','받','임','행','위','인','따','냈','속','대','틀','적','견','나누','할','텍스','천','놓','내','못','브렉','시트','붐벼','모든','만의',
+           '보다','최','민정','읏','타','구','좀','잘','주','려','번','보이','들','돼도','되도','칭','라이','그','때','대하','위하','그렇','말하','두','알','오','지','보','않','없','크','따르','문제','받','오','때문','월','속','네','앞','만들','그러','씨','생각하','그리고',
+           '그리고','그런','이런','저런','그리하여','그래서','따라서','N','떨어','오를','사라','마라','말아','알아','시키','가지','지금','싱','부나','로엔','펼칠','울긋불긋','물들','엇','널','급','앞장서','북키프로스','앗','싶','놀라','워',
+           '질까','통하','취해야','내달','측','악','윽','옥','나선','코로','둘','통한','삐걱','데즈','하이','로우','죈다','대','첫','꿴','꿰다','어쩌나','맞아','맞다']
+
+# 토큰화 작업(형태소)
+mecab = Mecab()
+tokenized_test = []
+for sentence in test['title']:
+    temp_X = mecab.morphs(sentence) # 토큰화
+    temp_X = [word for word in temp_X if not word in stopwords] # 불용어 제거
+    tokenized_test.append(temp_X)
+
+s = np.array([x for x in tokenized_test])
+
+# Tokenizer
+from keras.preprocessing.text import Tokenizer
+vocab_size = 10000  
+
+tokenizer = Tokenizer(num_words = vocab_size)  
+  # Tokenizer 는 데이터에 출현하는 모든 단어의 개수를 세고 빈도 수로 정렬해서 
+  # num_words 에 지정된 만큼만 숫자로 반환하고, 나머지는 0 으로 반환합니다                 
+tokenizer.fit_on_texts(s) # Tokenizer 에 데이터 실제로 입력
+sequences_train = tokenizer.texts_to_sequences(s)    # 문장 내 모든 단어를 시퀀스 번호로 변환
+
+# 변환된 시퀀스 번호를 이용해 단어 임베딩 벡터 생성
+word_index = tokenizer.word_index
+
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+# 독립변수 데이터 전처리
+  ## 문장의 길이기 제각각이기 때문에 벡터 크기 다 다름
+  ## 그러므로 최대 시퀀스 길이 크기(211) 만큼 넉넉하게 늘리고
+  ## 패딩(padding) 작업을 통해 나머지 빈 공간을 0으로 채움
+max_length = 21    # 위에서 그래프 확인 후 정함
+padding_type='post'
+
+Test = pad_sequences(sequences_train, padding='post', maxlen=max_length)
+
+print(Test.shape)
+
+
+## 모델링
+# CNN
+input_title = Input(shape=(21,), dtype='float32')
+a = Embedding(output_dim=1024, input_dim=10000, input_length=21)(input_title)
+# 필터(커널수)는 shape가 21이라 그 윗단 32를 주고 커널의 크기는 보통 3을 주는 예제가 많아 3으로 함.
+a = Conv1D(filters=512, kernel_size=5, activation='relu')(a)
+# a = Dropout(0.3)(a)
+# 글로벌맥스풀링은 지역적인 사소한 변화가 영향을 미치지 않도록 함
+a = GlobalMaxPooling1D()(a)
+a = Reshape((512,1))(a)
+a = Dropout(0.3)(a)
+
+a = LSTM(256)(a)
+a = Dropout(0.3)(a)
+# 덴스는 가중치의 수(?)
+a = Dense(64, activation='relu')(a)
+a = Dropout(0.3)(a)
+a = Dense(64, activation='relu')(a)
+a = Dropout(0.3)(a)
+
+# a = Dense(32, activation='relu')(a)
+# a = Dense(32, activation='relu')(a)
+
+main_output = Dense(7, activation='softmax', name='main_output')(a)
+
+model = Model(inputs=[input_title], outputs=main_output)
+
+
+model.summary()
+
+# 계층 교차 검증
+n_fold = 4
+seed = 123
+
+cv = StratifiedKFold(n_splits = n_fold, shuffle=True, random_state=seed)
+
+# 조기 종료 옵션 추가
+# cv.split으로 나누고 나서 원핫인코딩 진행해야함.
+for i, (tr, val) in enumerate(cv.split(X, y), 1):
+
+  early_stopping = EarlyStopping(monitor='val_loss',min_delta=0.001,patience=2,verbose=0,mode='auto')  
+
+  model.fit(X[tr], to_categorical(y[tr]),validation_data=(X[val], to_categorical(y[val])),epochs=10,batch_size=512,callbacks=[early_stopping])
+
+  test_pred = model.predict(Test) / n_fold
+
+pred = np.argmax(test_pred, axis = 1)
+
+# 샘플 서브미션에 적용하기!
+sub["topic_idx"] = pred
+sub.head()
+
+#최종 제출 파일 생성
+sub.to_csv('/content/drive/MyDrive/GPU 대용/2차_sample_submission.csv', index = False)
+
