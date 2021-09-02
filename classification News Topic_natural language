@@ -312,6 +312,6 @@ pred = np.argmax(test_pred, axis = 1)
 sub["topic_idx"] = pred
 sub.head()
 
-#최종 제출 파일 생성
+#최종 제출 파일 생성 
 sub.to_csv('/content/drive/MyDrive/GPU 대용/2차_sample_submission.csv', index = False)
 
