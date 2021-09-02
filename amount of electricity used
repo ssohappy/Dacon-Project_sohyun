@@ -370,7 +370,9 @@ from sklearn.cluster import KMeans
 
 
 # elbow method를 통해 군집의 개수 결정
-## elbow method : Cluster 간의 거리의 합을 나타내는 inertia가 급격히 떨어지는 구간이 생김. 이 지점의 K값을 군집의 개수로 사용함.
+# elbow method : Cluster 간의 거리의 합을 나타내는 inertia가 급격히 떨어지는 구간이 생김. 
+# 집단간의 분산이 적어야(거리가 가까워야) 군집을 나눴을 때 튀지 않음) 
+# 그래서 급격히 떨어지는 지점(거리간의 합이 급격히 작아지는 구간)의 값을 군집의 개수(K)로 사용.
 
 def change_n_clusters(n_clusters, data):
     sum_of_squared_distance = []
