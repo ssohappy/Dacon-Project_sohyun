@@ -329,7 +329,7 @@ test
 
 # **[ 클러스터링 ]**
 
-# - KMeans
+# KMeans
 
 
 # < Train Set >
@@ -417,3 +417,144 @@ test_cl
 
 # 클러스터링을 통한 피처 도출 후 저장
 test_cl.to_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/test_클러스터링 추가.csv', index=False)
+
+
+#**[ 기본 모델링 ]** 
+
+# y변수를 기반으로 x,y를 나눔
+train_x = tr.drop(['전력사용량(kWh)'],axis=1)
+train_y = tr['전력사용량(kWh)']
+
+# 학습을 위한 스플릿 진행
+X_train, X_test, y_train, y_test = train_test_split(train_x, train_y, test_size=0.2,random_state = 0)
+
+# 스플릿이 잘 되었나 shape으로 확인
+print(X_train.shape)
+print(X_test.shape)
+print(y_train.shape)
+print(y_test.shape)
+
+# 전에 썼던 모델들 코드 추가(랜덤포레스트, 캣부스트, 로지스틱, LGBM)
+
+# LGBM
+# 기본적인 진행은 정확도를 기반으로 함.
+# 그리드서치 전 기본 모델링
+import lightgbm as lgbm
+from lightgbm import LGBMRegressor
+
+lgbm = LGBMRegressor()
+
+lgbm.fit(X_train, y_train).score(X_test, y_test)
+
+#**[ 하이퍼 파라미터 조정 ]** 
+- 7월 10일 이내로 기입 예정
+
+
+
+#**[ 최종 모델링 및 검증 ]** 
+- 검증방법 : 정확도, 교차검증, SMAPE
+- 데이콘에서 지정한 검증방법은 SMAPE 임.
+
+# 최종_그리드서치 진행 후
+# LGBM
+# learning_rate 는 훈련량을 뜻하며, 모델 내에서 매우 중요함.
+# num_iterations는 반복량을 뜻하며, 값을 많이 측정하면 오버피팅이 되므로 주의가 필요함.
+# max_depth는 나무 깊이를 뜻하며 -1로 설정하면 제한 없이 분개하고 많은 피처가 있으면 더더욱 높게 설정함.
+# metric 학습하려는 목적에 따라 설정 / SMAPE가 옵션에 없어서 일단 MAPE로 진행함.
+# early_stopping_rounds 는 조기멈춤을 뜻하며 validation셋에 발전이 없으면 그만두게 설정할 수 있음.
+# min_data_in_leaf 는 오버피팅을 예방하는데 사용
+import lightgbm as lgbm
+from lightgbm import LGBMRegressor
+
+lgbm_ff = LGBMRegressor(random_state=0, learning_rate=0.2, metric = 'mape',
+                      num_iterations=2000,max_depth=-1,min_data_in_leaf=6)
+
+evals = [(X_test, y_test)]
+
+lgbm_ff.fit(X_train, y_train).score(X_test, y_test)
+
+# 교차검증 : 일반화 성능을 재기 위해 훈련 세트와 테스트 세트로 한 번 나누는 것보다 더 안정적이고 뛰어난 동계적 평가 방법
+# 일반적으로 스플릿을 진행할 때 랜덤으로 나눠주기 때문에 한쪽으로 데이터들이 한쪽으로 치우칠 수 있는 단점이 있는데 이것을 교차검증으로 몇번 더 나눠 보완할 수 있음.
+model = lgbm_ff
+
+from sklearn.model_selection import cross_val_score
+# k를 조정하여 다섯번(cv=5) 돌려본다.
+scores = cross_val_score(model, X_train, y_train, cv=5)
+print(scores)
+print(sum(scores)/len(scores))
+
+# 예측값 산출
+y_pred = lgbm_ff.predict(X_test)
+
+## 'SMAPE'
+- 대칭 평균 절대 백분율 오류 검증
+- 백분율 오류를 기반으로 하는 정확도 측정
+
+![image.png](data:image/png;base64,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)
+
+# 위 식에 대한 코드화 임. 
+def smape(a, f):
+    return 1/len(a) * np.sum(np.abs(f-a) / (np.abs(a) + np.abs(f))*100)
+
+# 이 모델의 대칭 평균 절대 백분율 오차가 2.2241% 임을 알 수 있음.
+# 이거일 때 정확도는 약 95% 정도 나옴
+# 낮은 수치가 좋은것임.
+smape(y_test, y_pred)
+
+# SMAPE 히스토리
+# 초반에 4.8정도 나옴.
+# 과도한 예측은 A t = 100 및 F t = 110은 SMAPE = 4.76 %
+# 예측 부족은 A t = 100 및 F t = 90은 SMAPE = 5.26 %
+# 실제 100에 예측 98이면 약 1%가 나옴!!
+# 과적합이 되있기때문에 줄여야됨.
+# 하이퍼 파라미터를 조정하여 값을 조정
+# 4점대 중반까지 줄임.
+# 기존에 오차율에 대한 범위가 0 ~ 200인 표준식으로 진행했지만
+# 학자들도 설명하기 쉬운 범위가 0 ~ 100인 식을 많이 쓴다고 하여 변경함.
+# 오차율 2.4 까지 줄어든 것을 확인함.
+
+# 변수명
+lgbm_feature_names = X_train.columns
+# lgbm.feature_importances_로 설명변수 중요도 확인 및 테이블로 저장
+df_importance = pd.DataFrame()
+df_importance ["Feature"] = lgbm_feature_names
+df_importance ["Importance"] = lgbm_ff.feature_importances_
+# df_feature_importance의 테이블을 중요도별로 정렬
+df_importance .sort_values("Importance", ascending=False, inplace = True)
+df_importance .round(3)
+
+# 설명변수 중요도 그래프
+# 중요도가 높은 변수를 상위에 그림 
+df_importance .sort_values("Importance", ascending=True, inplace = True)
+coordinates = range(len(df_importance ))
+plt.barh(y = coordinates, width = df_importance ["Importance"])
+plt.yticks(coordinates, df_importance ["Feature"])
+plt.xlabel("설명변수 중요도")
+plt.ylabel("설명변수")
+
+#**[ 최종 적용 ]** 
+
+# 최종 모델을 변수에 저장하고 정확도를 확인
+best_model = lgbm_ff
+best_model.score(X_test, y_test)
+
+# 적용 전 최종적으로 테스트 셋 확인
+te.head()
+
+# train set과 컬럼명을 맞춰주는 작업 진행
+te = te.rename(columns={'강수량(mm, 6시간)':'강수량(mm)'})
+te = te.rename(columns={'일조(hr, 3시간)':'일조(hr)'})
+
+# predict 함수를 통해 예측값 도출
+predictions = best_model.predict(te)
+
+# 예측값은 array로 나옴
+predictions
+
+  # array로 나온 값을 정답지에 붙여넣기
+  sub['answer'] = predictions
+
+sub
+
+# 최종 저장
+sub.to_csv('/content/drive/MyDrive/소현_승원_공모전/데이콘_전기사용량 예측/lgbm_cluster_submission_fff.csv', index=False)
